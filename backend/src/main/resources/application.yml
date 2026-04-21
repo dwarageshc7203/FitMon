@@ -1,0 +1,23 @@
+spring:
+  main:
+    banner-mode: "off"
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+server:
+  port: ${PORT:3001}
+
+fitmon:
+  client-origins: ${CLIENT_ORIGINS:http://localhost:5173,http://localhost:3000}
+  sensor-api-key: ${SENSOR_API_KEY:}
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-2.0-flash}
+  firebase:
+    service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:}
+    project-id: ${FIREBASE_PROJECT_ID:}
+    client-email: ${FIREBASE_CLIENT_EMAIL:}
+    private-key: ${FIREBASE_PRIVATE_KEY:}
+    private-key-id: ${FIREBASE_PRIVATE_KEY_ID:}
+    client-id: ${FIREBASE_CLIENT_ID:}
+    database-url: ${FIREBASE_DATABASE_URL:}
