@@ -7,15 +7,20 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.cloud.FirestoreClient;
 import com.google.cloud.firestore.Firestore;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class FirebaseConfig {
+  private static final Logger log = LoggerFactory.getLogger(FirebaseConfig.class);
   private final FitMonProperties properties;
 
   public FirebaseConfig(FitMonProperties properties) {
@@ -57,15 +62,16 @@ public class FirebaseConfig {
 
   private GoogleCredentials loadCredentials() throws IOException {
     String serviceAccountPath = properties.getFirebase().getServiceAccountPath();
-    if (serviceAccountPath != null && !serviceAccountPath.isBlank()) {
-      return GoogleCredentials.fromStream(new FileInputStream(serviceAccountPath));
+    if (hasText(serviceAccountPath)) {
+      File configuredFile = new File(serviceAccountPath);
+      return loadCredentialsFromFile(configuredFile, "FIREBASE_SERVICE_ACCOUNT_PATH");
     }
 
     String projectId = properties.getFirebase().getProjectId();
     String clientEmail = properties.getFirebase().getClientEmail();
     String privateKey = properties.getFirebase().getPrivateKey();
 
-    if (projectId != null && clientEmail != null && privateKey != null) {
+    if (hasText(projectId) && hasText(clientEmail) && hasText(privateKey)) {
       String privateKeyId = Objects.toString(properties.getFirebase().getPrivateKeyId(), "");
       String clientId = Objects.toString(properties.getFirebase().getClientId(), "");
       String sanitizedKey = privateKey.replace("\\n", "\n");
@@ -84,8 +90,34 @@ public class FirebaseConfig {
       );
     }
 
+    File defaultServiceAccount = new File("firebase-service-account.json");
+    if (defaultServiceAccount.exists() && defaultServiceAccount.isFile()) {
+      log.info("Using fallback Firebase service account file at {}", defaultServiceAccount.getAbsolutePath());
+      return loadCredentialsFromFile(defaultServiceAccount, "firebase-service-account.json");
+    }
+
     throw new IllegalStateException(
       "Firebase Admin credentials are missing. Set FIREBASE_SERVICE_ACCOUNT_PATH or FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY.");
+  }
+
+  private boolean hasText(String value) {
+    return value != null && !value.isBlank();
+  }
+
+  private GoogleCredentials loadCredentialsFromFile(File file, String sourceName) throws IOException {
+    if (!file.exists() || !file.isFile()) {
+      throw new IllegalStateException("Firebase credentials file from " + sourceName + " was not found: " + file.getAbsolutePath());
+    }
+    if (!file.canRead()) {
+      throw new IllegalStateException("Firebase credentials file from " + sourceName + " is not readable: " + file.getAbsolutePath());
+    }
+    if (file.length() == 0L) {
+      throw new IllegalStateException("Firebase credentials file from " + sourceName + " is empty: " + file.getAbsolutePath());
+    }
+
+    try (InputStream inputStream = new FileInputStream(file)) {
+      return GoogleCredentials.fromStream(inputStream);
+    }
   }
 
   private String escapeJson(String value) {
