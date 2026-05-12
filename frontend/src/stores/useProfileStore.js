@@ -170,11 +170,24 @@ const useProfileStore = create((set, get) => ({
   saveHeatmapDay: async (uid, dateKey, exercises) => {
     if (!dateKey) return;
     const previous = get().heatmapByDay[dateKey];
+    const previousWeeklyHeatmap = get().weeklyHeatmap;
+    const { counts } = computeMuscleActivation(exercises);
+    const activationCount = Object.values(counts).reduce((sum, value) => sum + value, 0);
     set((state) => ({
       heatmapByDay: { ...state.heatmapByDay, [dateKey]: exercises },
+      weeklyHeatmap: state.weeklyHeatmap.map((day) => (
+        day.dateKey === dateKey
+          ? { ...day, exercises, activationCount }
+          : day
+      )),
+      heatmapError: null,
     }));
     if (!db || !uid) {
-      set({ heatmapError: !uid ? 'Sign in to save workout progress.' : 'Database unavailable.' });
+      set({
+        heatmapByDay: { ...get().heatmapByDay, [dateKey]: previous || [] },
+        weeklyHeatmap: previousWeeklyHeatmap,
+        heatmapError: !uid ? 'Sign in to save workout progress.' : 'Database unavailable.',
+      });
       return;
     }
     try {
@@ -186,10 +199,11 @@ const useProfileStore = create((set, get) => ({
         updatedAt: Date.now(),
       }, { merge: true });
     } catch (e) {
-      set((state) => ({
-        heatmapByDay: { ...state.heatmapByDay, [dateKey]: previous || [] },
+      set({
+        heatmapByDay: { ...get().heatmapByDay, [dateKey]: previous || [] },
+        weeklyHeatmap: previousWeeklyHeatmap,
         heatmapError: e.message,
-      }));
+      });
     }
   },
 

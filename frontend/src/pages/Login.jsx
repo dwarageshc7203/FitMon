@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { AlertTriangle } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { auth, googleProvider, hasFirebaseConfig } from '../firebase/config';
@@ -28,7 +28,24 @@ export default function Login() {
       setIsSubmitting(true);
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      setLocalError('Sign-in failed. Please try again.');
+      const code = error?.code || '';
+
+      if (code === 'auth/popup-closed-by-user') {
+        setLocalError('Google sign-in was canceled before completion.');
+        return;
+      }
+
+      if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch {
+          setLocalError('Popup was blocked. Please allow popups and try again.');
+          return;
+        }
+      }
+
+      setLocalError(error?.message || 'Sign-in failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

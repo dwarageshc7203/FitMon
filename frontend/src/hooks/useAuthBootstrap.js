@@ -32,7 +32,20 @@ export default function useAuthBootstrap() {
 
         setAuthState({ user, token });
       } catch (error) {
-        setError(error.message);
+        // Keep the app usable even if backend session initialization fails.
+        // Firestore-backed features can still work with Firebase-authenticated identity.
+        const fallbackUser = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          name: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'FitMon User'),
+          photoURL: firebaseUser.photoURL || '',
+          role: 'trainee',
+        };
+        setAuthState({
+          user: fallbackUser,
+          token: await firebaseUser.getIdToken(),
+        });
+        setError(error?.message || 'Signed in, but profile sync failed.');
       }
     });
 
