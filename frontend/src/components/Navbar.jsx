@@ -85,6 +85,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/config';
+import useAuthStore from '../store/useAuthStore';
 
 /**
  * AppNavbar — shared navbar for all authenticated pages.
@@ -93,6 +94,7 @@ import { auth } from '../firebase/config';
 export default function Navbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const user = useAuthStore((state) => state.user);
 
   if (pathname === '/' || pathname === '/login') {
     return null;
@@ -103,19 +105,27 @@ export default function Navbar() {
     navigate('/');
   };
 
-  const links = [
-    { label: 'Home', to: '/dashboard' },
-    { label: 'Workout', to: '/workout' },
-    { label: 'Session', to: '/session' },
-    { label: 'History', to: '/history' },
-    { label: 'Profile', to: '/profile' },
-  ];
+  const isCoach = user?.role === 'coach' || user?.role === 'mentor';
+  const homePath = isCoach ? '/coach' : '/dashboard';
+
+  const links = isCoach
+    ? [
+        { label: 'Home', to: '/coach' },
+        { label: 'Session', to: '/session' },
+      ]
+    : [
+        { label: 'Home', to: '/dashboard' },
+        { label: 'Workout', to: '/workout' },
+        { label: 'Session', to: '/session' },
+        { label: 'History', to: '/history' },
+        { label: 'Profile', to: '/profile' },
+      ];
 
   return (
     <nav className="navbar">
       <div className="navbar-inner">
         {/* Logo */}
-        <Link to="/dashboard" className="navbar-brand">
+        <Link to={homePath} className="navbar-brand">
           <span className="navbar-title">
             Fit<span className="navbar-dot">·</span>Mon
           </span>

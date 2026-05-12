@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/useAuthStore';
+import { authorizedRequest } from '../services/apiClient';
+import { auth } from '../firebase/config';
 import useProfileStore from '../stores/useProfileStore';
-import ExerciseSelector from '../components/ExerciseSelector';
 import MuscleHeatmap from '../components/MuscleHeatmap';
 import WeeklyProgress from '../components/WeeklyProgress';
 import { toDayKey, shiftDayKey } from '../utils/dateUtils';
@@ -10,17 +11,24 @@ import '../index.css';
 
 export default function Profile() {
   const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
+  const setAuthState = useAuthStore((state) => state.setAuthState);
+    const getActiveToken = async () => {
+      if (token) return token;
+      if (auth?.currentUser) return auth.currentUser.getIdToken();
+      return null;
+    };
+
   const {
     goal, streak, totalSessions, accuracyRate, recentSessions,
     fetchProfileMetrics, updateGoal, isLoading,
     heatmapByDay, selectedHeatmapDate, weeklyHeatmap,
-    setHeatmapDate, fetchHeatmapDay, saveHeatmapDay, fetchWeeklyHeatmap,
+    setHeatmapDate, fetchHeatmapDay, fetchWeeklyHeatmap,
     isHeatmapLoading,
   } = useProfileStore();
 
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState('');
-  const [heatmapView, setHeatmapView] = useState('front');
 
   useEffect(() => {
     if (user) fetchProfileMetrics(user);
@@ -42,19 +50,6 @@ export default function Profile() {
     () => heatmapByDay[activeDateKey] || [],
     [heatmapByDay, activeDateKey]
   );
-
-  const handleToggleExercise = (exerciseId) => {
-    if (!user?.uid) return;
-    const updated = selectedExercises.includes(exerciseId)
-      ? selectedExercises.filter((item) => item !== exerciseId)
-      : [...selectedExercises, exerciseId];
-    saveHeatmapDay(user.uid, activeDateKey, updated);
-  };
-
-  const handleResetExercises = () => {
-    if (!user?.uid) return;
-    saveHeatmapDay(user.uid, activeDateKey, []);
-  };
 
   const handleSaveGoal = async () => {
     if (user?.uid) await updateGoal(user.uid, goalInput);
@@ -111,6 +106,36 @@ export default function Profile() {
             <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
               {user?.email || '—'}
             </p>
+            <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <label style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>Role</label>
+              <select
+                value={user?.role || 'fitness_enthusiast'}
+                onChange={async (e) => {
+                  const newRole = e.target.value;
+                  try {
+                    const activeToken = await getActiveToken();
+                    if (!activeToken) return;
+                    await authorizedRequest('/api/users/role', activeToken, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ role: newRole }),
+                    });
+                    const body = await authorizedRequest('/api/auth/me', activeToken, { method: 'GET' });
+                    const nextUser = body?.user || { ...(user || {}), role: newRole };
+                    setAuthState({ user: nextUser, token: activeToken });
+                  } catch {
+                    // fallback local update if backend readback fails
+                    if (user) {
+                      setAuthState({ user: { ...user, role: newRole }, token: token || null });
+                    }
+                  }
+                }}
+                className="input-field"
+                style={{ padding: '6px 10px' }}
+              >
+                <option value="fitness_enthusiast">Fitness Enthusiast</option>
+                <option value="coach">Coach</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -230,16 +255,7 @@ export default function Profile() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-            <MuscleHeatmap
-              selectedExercises={selectedExercises}
-              view={heatmapView}
-              onViewChange={setHeatmapView}
-            />
-            <ExerciseSelector
-              selectedExercises={selectedExercises}
-              onToggle={handleToggleExercise}
-              onReset={handleResetExercises}
-            />
+            <MuscleHeatmap selectedMuscles={selectedExercises} />
           </div>
 
           {isHeatmapLoading && (

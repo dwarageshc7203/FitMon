@@ -80,6 +80,15 @@ class SocketService {
           useSessionStore.getState().setSessionId(data?.sessionId || null);
           useSessionStore.getState().setSessionActive(true);
           break;
+        case 'coach_session_code':
+          useSessionStore.getState().setCoachSessionCode(data?.code || '');
+          break;
+        case 'coached_session_report':
+          useSessionStore.getState().pushCoachedReport(data || null);
+          break;
+        case 'athlete_video_frame':
+          useSessionStore.getState().setAthleteVideoFrame(data || null);
+          break;
         case 'feedback':
           if (data?.type === 'warning') {
             useSessionStore.getState().updateFeedback({
@@ -117,8 +126,12 @@ class SocketService {
     }
   }
 
-  startSession() {
-    this.send('start_session', {});
+  startSession(payload = {}) {
+    this.send('start_session', payload);
+  }
+
+  createCoachSessionCode() {
+    this.send('create_coach_session_code', {});
   }
 
   sendCVResults(results) {
@@ -127,6 +140,10 @@ class SocketService {
 
   sendIoTData(value, timestamp = Date.now()) {
     this.send('iot_data', { value, timestamp });
+  }
+
+  sendVideoFrame(imageData, timestamp = Date.now()) {
+    this.send('video_frame', { imageData, timestamp });
   }
 
   endSession() {

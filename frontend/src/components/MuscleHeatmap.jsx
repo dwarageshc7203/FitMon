@@ -1,15 +1,4 @@
-import React from "react";
-
-const exerciseToMuscles = {
-  pushups: ["chest", "triceps_left", "triceps_right", "shoulders_left", "shoulders_right"],
-  pullups: ["biceps_left", "biceps_right"],
-  squats: ["quads_left", "quads_right"],
-  lunges: ["quads_left", "quads_right"],
-  plank: ["abs"],
-  shoulder_press: ["shoulders_left", "shoulders_right"],
-  bicep_curls: ["biceps_left", "biceps_right"],
-  tricep_dips: ["triceps_left", "triceps_right"],
-};
+import { computeMuscleActivation } from '../utils/muscleMapping';
 
 const getColor = (intensity) => {
   if (!intensity) return "#e5e7eb";
@@ -18,14 +7,8 @@ const getColor = (intensity) => {
   return "#b91c1c";
 };
 
-export default function MuscleHeatmap({ selectedExercises = [] }) {
-  const muscleActivation = {};
-
-  selectedExercises.forEach((ex) => {
-    exerciseToMuscles[ex]?.forEach((m) => {
-      muscleActivation[m] = (muscleActivation[m] || 0) + 1;
-    });
-  });
+export default function MuscleHeatmap({ selectedExercises = [], selectedMuscles = [] }) {
+  const muscleActivation = computeMuscleActivation([...selectedExercises, ...selectedMuscles]).counts;
 
   const fill = (muscle) => getColor(muscleActivation[muscle]);
 

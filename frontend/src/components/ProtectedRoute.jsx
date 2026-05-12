@@ -23,7 +23,8 @@ export default function ProtectedRoute({ roles }) {
   }
 
   if (roles?.length && !roles.includes(user.role)) {
-    return <Navigate to={user.role === 'mentor' ? '/mentor' : '/dashboard'} replace />;
+    const isCoach = user.role === 'coach' || user.role === 'mentor';
+    return <Navigate to={isCoach ? '/coach' : '/dashboard'} replace />;
   }
 
   return <Outlet />;

@@ -35,12 +35,22 @@ public class SessionService {
   private final Map<String, SessionState> sessions = new ConcurrentHashMap<>();
   private final Map<String, String> socketToSessionId = new ConcurrentHashMap<>();
 
-  public SessionState createSession(String socketId, String uid, String email) {
+  public SessionState createSession(
+    String socketId,
+    String uid,
+    String email,
+    String coachUid,
+    String coachSessionCode,
+    String sessionMode
+  ) {
     SessionState session = new SessionState(
       UUID.randomUUID().toString(),
       socketId,
       uid,
       email,
+      coachUid,
+      coachSessionCode,
+      sessionMode,
       System.currentTimeMillis()
     );
     startFsrCalibration(session);
@@ -381,6 +391,8 @@ public class SessionService {
     summary.setSessionId(session.getId());
     summary.setUid(session.getUid());
     summary.setEmail(session.getEmail());
+    summary.setCoachUid(session.getCoachUid());
+    summary.setCoachSessionCode(session.getCoachSessionCode());
     summary.setStartedAt(session.getStartedAt());
     summary.setEndedAt(System.currentTimeMillis());
     summary.setDuration(Math.round((summary.getEndedAt() - session.getStartedAt()) / 1000.0f));

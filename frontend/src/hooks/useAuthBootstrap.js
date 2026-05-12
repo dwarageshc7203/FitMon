@@ -28,8 +28,8 @@ export default function useAuthBootstrap() {
         const token = await firebaseUser.getIdToken();
         const { user } = await authorizedRequest('/api/auth/session', token, {
           method: 'POST',
+          body: JSON.stringify({}),
         });
-
         setAuthState({ user, token });
       } catch (error) {
         // Keep the app usable even if backend session initialization fails.
@@ -39,7 +39,7 @@ export default function useAuthBootstrap() {
           email: firebaseUser.email || '',
           name: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'FitMon User'),
           photoURL: firebaseUser.photoURL || '',
-          role: 'trainee',
+          role: 'fitness_enthusiast',
         };
         setAuthState({
           user: fallbackUser,

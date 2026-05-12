@@ -14,6 +14,8 @@ public class SessionReport {
   private String sessionId;
   private String uid;
   private String email;
+  private String coachUid;
+  private String coachSessionCode;
   private long startedAt;
   private long endedAt;
   private long duration;
@@ -33,6 +35,8 @@ public class SessionReport {
     this.sessionId = summary.getSessionId();
     this.uid = summary.getUid();
     this.email = summary.getEmail();
+    this.coachUid = summary.getCoachUid();
+    this.coachSessionCode = summary.getCoachSessionCode();
     this.startedAt = summary.getStartedAt();
     this.endedAt = summary.getEndedAt();
     this.duration = summary.getDuration();

@@ -15,6 +15,9 @@ public class SessionState {
   private String socketId;
   private String uid;
   private String email;
+  private String coachUid;
+  private String coachSessionCode;
+  private String sessionMode;
   private long startedAt;
   private int totalReps;
   private int correctReps;
@@ -62,12 +65,24 @@ public class SessionState {
     this.calibrationValues = new ArrayList<>();
   }
 
-  public SessionState(String id, String socketId, String uid, String email, long startedAt) {
+  public SessionState(
+    String id,
+    String socketId,
+    String uid,
+    String email,
+    String coachUid,
+    String coachSessionCode,
+    String sessionMode,
+    long startedAt
+  ) {
     this();
     this.id = id;
     this.socketId = socketId;
     this.uid = uid;
     this.email = email;
+    this.coachUid = coachUid;
+    this.coachSessionCode = coachSessionCode;
+    this.sessionMode = sessionMode;
     this.startedAt = startedAt;
   }
 

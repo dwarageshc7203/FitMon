@@ -45,7 +45,7 @@ export function computeMuscleActivation(selectedExercises) {
   const counts = {};
 
   selectedExercises.forEach((exercise) => {
-    const muscles = exerciseToMuscles[exercise] || [];
+    const muscles = exerciseToMuscles[exercise] || (muscleDisplayNames[exercise] ? [exercise] : []);
     muscles.forEach((muscle) => {
       counts[muscle] = (counts[muscle] || 0) + 1;
     });

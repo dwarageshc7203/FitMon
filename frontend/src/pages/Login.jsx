@@ -50,7 +50,6 @@ export default function Login() {
       setIsSubmitting(false);
     }
   }
-
   return (
     <div className="auth-page" style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <div style={{ width: '100%', maxWidth: '400px' }}>
@@ -64,7 +63,7 @@ export default function Login() {
               Welcome to FitMon
             </h2>
             <p className="text-secondary" style={{ fontSize: '0.9rem' }}>
-              Continue with Google to sign in or create your account.
+              Continue with Google to get started.
             </p>
           </div>
 

@@ -66,6 +66,37 @@ export default function WebcamFeed() {
     setCameraError('');
   }, []);
 
+  useEffect(() => {
+    let frameTimer = null;
+    if (!sessionActive) {
+      return () => {
+        if (frameTimer) clearInterval(frameTimer);
+      };
+    }
+
+    const sendFrame = () => {
+      const video = webcamRef.current?.video;
+      if (!video || video.readyState < 2) return;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL('image/jpeg', 0.6);
+        socketService.sendVideoFrame(imageData, Date.now());
+      } catch {
+        // ignore frame capture errors
+      }
+    };
+
+    frameTimer = setInterval(sendFrame, 500);
+
+    return () => {
+      if (frameTimer) clearInterval(frameTimer);
+    };
+  }, [sessionActive]);
+
   const handleUserMediaError = useCallback((error) => {
     const message = error?.name === 'NotReadableError'
       ? 'Camera is busy. Close other apps using the camera and refresh this page.'

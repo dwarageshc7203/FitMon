@@ -20,7 +20,8 @@ function DefaultAuthenticatedRedirect() {
     return <LandingPage />;
   }
 
-  return <Navigate to={user.role === 'mentor' ? '/mentor' : '/dashboard'} replace />;
+  const role = user.role;
+  return <Navigate to={role === 'coach' || role === 'mentor' ? '/coach' : '/dashboard'} replace />;
 }
 
 export default function App() {
@@ -39,17 +40,21 @@ export default function App() {
             <Route path="/" element={<DefaultAuthenticatedRedirect />} />
             <Route path="/login" element={<Login />} />
 
-            <Route element={<ProtectedRoute roles={['trainee']} />}>
+            <Route element={<ProtectedRoute roles={['fitness_enthusiast', 'trainee']} />}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/session" element={<Session />} />
               <Route path="/report/:id" element={<Report />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/history" element={<History />} />
               <Route path="/workout" element={<Workout />} />
             </Route>
 
-            <Route element={<ProtectedRoute roles={['mentor']} />}>
-              <Route path="/mentor" element={<Mentor />} />
+            <Route element={<ProtectedRoute roles={['fitness_enthusiast', 'trainee', 'coach', 'mentor']} />}>
+              <Route path="/session" element={<Session />} />
+            </Route>
+
+            <Route element={<ProtectedRoute roles={['coach', 'mentor']} />}>
+              <Route path="/coach" element={<Mentor />} />
+              <Route path="/mentor" element={<Navigate to="/coach" replace />} />
             </Route>
           </Routes>
         </main>

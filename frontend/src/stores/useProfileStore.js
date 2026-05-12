@@ -1,10 +1,19 @@
 import { create } from 'zustand';
 import { getFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
+import { auth } from '../firebase/config';
+import { authorizedRequest } from '../services/apiClient';
 import { computeMuscleActivation } from '../utils/muscleMapping';
 import { toDayKey, dayKeyToDate } from '../utils/dateUtils';
 import { firebaseApp } from '../firebase/config';
 
 const db = firebaseApp ? getFirestore(firebaseApp) : null;
+
+const getActiveToken = async () => {
+  if (auth?.currentUser) {
+    return auth.currentUser.getIdToken();
+  }
+  return null;
+};
 
 const getSessionTimestamp = (session) => {
   const ts = session?.startedAt ?? session?.createdAt ?? session?.endedAt;
@@ -16,37 +25,6 @@ const getSessionTimestamp = (session) => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
-
-const computeStreak = (sessions) => {
-  const dayKeys = new Set();
-  sessions.forEach((session) => {
-    const ts = getSessionTimestamp(session);
-    if (ts) dayKeys.add(toDayKey(ts));
-  });
-
-  if (dayKeys.size === 0) return 0;
-
-  const sorted = Array.from(dayKeys).sort((a, b) => new Date(b) - new Date(a));
-  const todayKey = toDayKey(Date.now());
-  const yesterdayKey = toDayKey(Date.now() - 24 * 60 * 60 * 1000);
-
-  let startKey = null;
-  if (sorted[0] === todayKey) startKey = todayKey;
-  else if (sorted[0] === yesterdayKey) startKey = yesterdayKey;
-  else return 0;
-
-  let streakCount = 0;
-  const cursor = dayKeyToDate(startKey);
-
-  while (true) {
-    const key = toDayKey(cursor);
-    if (!dayKeys.has(key)) break;
-    streakCount += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  return streakCount;
-};
 
 const useProfileStore = create((set, get) => ({
   goal: '',
@@ -82,9 +60,22 @@ const useProfileStore = create((set, get) => ({
         goal = data.goal || goal;
       }
 
+      const token = await getActiveToken();
+      if (token) {
+        try {
+          const me = await authorizedRequest('/api/auth/me', token, { method: 'GET' });
+          if (me?.user) {
+            streak = Number(me.user.streak || streak || 0);
+            goal = me.user.goal || goal;
+          }
+        } catch {
+          // fallback to firestore values
+        }
+      }
+
       const sessionsRef = collection(db, 'sessions');
       const queries = [];
-      if (uid) queries.push(getDocs(query(sessionsRef, where('userId', '==', uid))));
+      if (uid) queries.push(getDocs(query(sessionsRef, where('uid', '==', uid))));
       if (email) queries.push(getDocs(query(sessionsRef, where('email', '==', email))));
 
       const snapshots = await Promise.all(queries);
@@ -106,9 +97,6 @@ const useProfileStore = create((set, get) => ({
           accurateSessions++;
         }
       });
-
-      const computedStreak = computeStreak(allSessions);
-      if (computedStreak > 0) streak = computedStreak;
 
       // Sort computationally to avoid needing a composite index
       allSessions.sort((a, b) => (getSessionTimestamp(b) || 0) - (getSessionTimestamp(a) || 0));
@@ -151,13 +139,22 @@ const useProfileStore = create((set, get) => ({
   setHeatmapDate: (dateKey) => set({ selectedHeatmapDate: dateKey }),
 
   fetchHeatmapDay: async (uid, dateKey) => {
-    if (!db || !uid || !dateKey) return;
+    if (!uid || !dateKey) return;
     set({ isHeatmapLoading: true, heatmapError: null });
     try {
-      const userRef = doc(db, 'users', uid);
-      const dayRef = doc(collection(userRef, 'workoutDays'), dateKey);
-      const snap = await getDoc(dayRef);
-      const exercises = snap.exists() ? (snap.data().exercises || []) : [];
+      let exercises = [];
+      const token = await getActiveToken();
+      if (token) {
+        const response = await authorizedRequest(`/api/workout/day?dateKey=${encodeURIComponent(dateKey)}`, token, { method: 'GET' });
+        const dayData = response?.day || {};
+        exercises = dayData.selectedMuscleGroups || dayData.exercises || [];
+      } else if (db) {
+        const userRef = doc(db, 'users', uid);
+        const dayRef = doc(collection(userRef, 'workoutDays'), dateKey);
+        const snap = await getDoc(dayRef);
+        const dayData = snap.exists() ? snap.data() : {};
+        exercises = dayData.selectedMuscleGroups || dayData.exercises || [];
+      }
       set((state) => ({
         heatmapByDay: { ...state.heatmapByDay, [dateKey]: exercises },
         isHeatmapLoading: false,
@@ -196,6 +193,7 @@ const useProfileStore = create((set, get) => ({
       await setDoc(dayRef, {
         dateKey,
         exercises,
+        selectedMuscleGroups: exercises,
         updatedAt: Date.now(),
       }, { merge: true });
     } catch (e) {
@@ -208,7 +206,7 @@ const useProfileStore = create((set, get) => ({
   },
 
   fetchWeeklyHeatmap: async (uid, endDateKey) => {
-    if (!db || !uid) return;
+    if (!uid) return;
     const endKey = endDateKey || toDayKey(Date.now());
     const endDate = dayKeyToDate(endKey);
     const dayKeys = [];
@@ -220,12 +218,20 @@ const useProfileStore = create((set, get) => ({
 
     set({ isHeatmapLoading: true, heatmapError: null });
     try {
-      const userRef = doc(db, 'users', uid);
+      const token = await getActiveToken();
       const results = await Promise.all(
         dayKeys.map(async (key) => {
-          const dayRef = doc(collection(userRef, 'workoutDays'), key);
-          const snap = await getDoc(dayRef);
-          const exercises = snap.exists() ? (snap.data().exercises || []) : [];
+          let dayData = {};
+          if (token) {
+            const response = await authorizedRequest(`/api/workout/day?dateKey=${encodeURIComponent(key)}`, token, { method: 'GET' });
+            dayData = response?.day || {};
+          } else if (db) {
+            const userRef = doc(db, 'users', uid);
+            const dayRef = doc(collection(userRef, 'workoutDays'), key);
+            const snap = await getDoc(dayRef);
+            dayData = snap.exists() ? snap.data() : {};
+          }
+          const exercises = dayData.selectedMuscleGroups || dayData.exercises || [];
           const { counts } = computeMuscleActivation(exercises);
           const activationCount = Object.values(counts).reduce((sum, value) => sum + value, 0);
           return { dateKey: key, exercises, activationCount };

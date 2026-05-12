@@ -14,6 +14,8 @@ public class SessionSummary {
   private String sessionId;
   private String uid;
   private String email;
+  private String coachUid;
+  private String coachSessionCode;
   private long startedAt;
   private long endedAt;
   private long duration;

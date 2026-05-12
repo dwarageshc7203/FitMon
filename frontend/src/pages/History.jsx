@@ -23,7 +23,7 @@ export default function History() {
       try {
         const sessionsRef = collection(db, 'sessions');
         const queries = [];
-        if (user?.uid) queries.push(getDocs(query(sessionsRef, where('userId', '==', user.uid))));
+        if (user?.uid) queries.push(getDocs(query(sessionsRef, where('uid', '==', user.uid))));
         if (user?.email) queries.push(getDocs(query(sessionsRef, where('email', '==', user.email))));
 
         const snapshots = await Promise.all(queries);

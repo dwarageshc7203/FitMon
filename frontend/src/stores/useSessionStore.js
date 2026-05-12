@@ -7,6 +7,9 @@ const useSessionStore = create((set, get) => ({
   socketError: '',
   sessionId: null,
   sessionActive: false,
+  coachSessionCode: '',
+  coachedReports: [],
+  athleteVideoFrame: null,
   repCount: 0,
   angle: 0,
   repState: 'IDLE',
@@ -33,6 +36,12 @@ const useSessionStore = create((set, get) => ({
   setSocketError: (socketError) => set({ socketError }),
   setSessionId: (sessionId) => set({ sessionId, socketError: '' }),
   setSessionActive: (sessionActive) => set({ sessionActive }),
+  setCoachSessionCode: (coachSessionCode) => set({ coachSessionCode }),
+  setAthleteVideoFrame: (athleteVideoFrame) => set({ athleteVideoFrame }),
+  pushCoachedReport: (report) =>
+    set((state) => ({
+      coachedReports: [report, ...state.coachedReports].slice(0, 10),
+    })),
   setPoseReady: (poseReady) => set({ poseReady }),
   setGeneratingReport: (isGeneratingReport) => set({ isGeneratingReport }),
   resetLiveFeedback: () =>
@@ -108,6 +117,8 @@ const useSessionStore = create((set, get) => ({
       socketError: '',
       sessionId: null,
       sessionActive: false,
+      coachSessionCode: '',
+      athleteVideoFrame: null,
       repCount: 0,
       angle: 0,
       repState: 'IDLE',
@@ -127,6 +138,7 @@ const useSessionStore = create((set, get) => ({
       confidenceScore: 50,
       feedbackMessages: [],
       report: null,
+      coachedReports: [],
       isGeneratingReport: false,
     }),
 }));

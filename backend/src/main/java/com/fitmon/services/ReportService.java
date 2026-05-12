@@ -12,14 +12,17 @@ import org.springframework.stereotype.Service;
 public class ReportService {
   private final Firestore firestore;
   private final GeminiService geminiService;
+  private final UserService userService;
 
-  public ReportService(Firestore firestore, GeminiService geminiService) {
+  public ReportService(Firestore firestore, GeminiService geminiService, UserService userService) {
     this.firestore = firestore;
     this.geminiService = geminiService;
+    this.userService = userService;
   }
 
   public SessionReport buildSessionReport(SessionSummary summary) throws Exception {
     String firestoreId = saveSessionSummary(summary);
+    userService.refreshUserStreak(summary.getUid(), summary.getEndedAt());
     GeminiInsights insights = geminiService.generateSessionInsights(summary);
 
     SessionReport report = new SessionReport(summary);
@@ -35,6 +38,8 @@ public class ReportService {
     payload.put("sessionId", summary.getSessionId());
     payload.put("uid", summary.getUid());
     payload.put("email", summary.getEmail());
+    payload.put("coachUid", summary.getCoachUid());
+    payload.put("coachSessionCode", summary.getCoachSessionCode());
     payload.put("startedAt", summary.getStartedAt());
     payload.put("endedAt", summary.getEndedAt());
     payload.put("duration", summary.getDuration());

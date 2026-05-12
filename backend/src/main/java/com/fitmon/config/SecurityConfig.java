@@ -22,7 +22,7 @@ public class SecurityConfig {
       .csrf((csrf) -> csrf.disable())
       .cors(Customizer.withDefaults())
       .authorizeHttpRequests((auth) -> auth
-        .requestMatchers("/api/auth/**").authenticated()
+        .requestMatchers("/api/auth/**", "/api/users/**", "/api/workout/**").authenticated()
         .anyRequest().permitAll()
       )
       .httpBasic(Customizer.withDefaults())

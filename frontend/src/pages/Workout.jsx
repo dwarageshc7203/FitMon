@@ -1,41 +1,60 @@
-import { useEffect, useMemo, useState } from 'react';
-import ExerciseSelector from '../components/ExerciseSelector';
-import MuscleHeatmap from '../components/MuscleHeatmap';
+import { useEffect, useState } from 'react';
+import { auth } from '../firebase/config';
 import useAuthStore from '../store/useAuthStore';
-import useProfileStore from '../stores/useProfileStore';
+import { authorizedRequest } from '../services/apiClient';
 import { toDayKey } from '../utils/dateUtils';
 import '../index.css';
 
 const workouts = [
-  { id: 1, name: 'Push-Up Form Guide', muscle: 'Chest', difficulty: 'Beginner', ytId: 'IODxDxX7oi4' },
-  { id: 2, name: 'Bench Press Technique', muscle: 'Chest', difficulty: 'Intermediate', ytId: 'rT7DgCr-3pg' },
-  { id: 3, name: 'Pull-Up Tutorial', muscle: 'Back', difficulty: 'Intermediate', ytId: 'eGo4IYlbE5g' },
-  { id: 4, name: 'Deadlift Form Guide', muscle: 'Back', difficulty: 'Advanced', ytId: 'op9kVnSso6Q' },
-  { id: 5, name: 'Squat Technique', muscle: 'Legs', difficulty: 'Beginner', ytId: 'aclHkVaku9U' },
-  { id: 6, name: 'Leg Press Guide', muscle: 'Legs', difficulty: 'Intermediate', ytId: 'IZxyjW7LOLM' },
-  { id: 7, name: 'Shoulder Press Form', muscle: 'Shoulders', difficulty: 'Intermediate', ytId: 'qEwKCR5JCog' },
-  { id: 8, name: 'Lateral Raise Tutorial', muscle: 'Shoulders', difficulty: 'Beginner', ytId: '3VcKaXpzqRo' },
-  { id: 9, name: 'Bicep Curl Guide', muscle: 'Arms', difficulty: 'Beginner', ytId: 'ykJmrZ5v0Oo' },
-  { id: 10, name: 'Tricep Dips Tutorial', muscle: 'Arms', difficulty: 'Intermediate', ytId: '0326dy_-CzM' },
-  { id: 11, name: 'Plank Variations', muscle: 'Core', difficulty: 'Beginner', ytId: 'ASdvN_XEl_c' },
-  { id: 12, name: 'Ab Workout Routine', muscle: 'Core', difficulty: 'Intermediate', ytId: 'DHD1-2P4ngg' },
+  { id: 1, name: 'Push-Up', muscle: 'Chest', difficulty: 'Beginner', ytId: 'IODxDxX7oi4' },
+  { id: 2, name: 'Bench Press', muscle: 'Chest', difficulty: 'Intermediate', ytId: 'rT7DgCr-3pg' },
+  { id: 3, name: 'Pull-Up', muscle: 'Back', difficulty: 'Intermediate', ytId: 'eGo4IYlbE5g' },
+  { id: 4, name: 'Deadlift', muscle: 'Back', difficulty: 'Advanced', ytId: 'op9kVnSso6Q' },
+  { id: 5, name: 'Squat', muscle: 'Legs', difficulty: 'Beginner', ytId: 'aclHkVaku9U' },
+  { id: 6, name: 'Leg Press', muscle: 'Legs', difficulty: 'Intermediate', ytId: 'IZxyjW7LOLM' },
+  { id: 7, name: 'Shoulder Press', muscle: 'Shoulders', difficulty: 'Intermediate', ytId: 'qEwKCR5JCog' },
+  { id: 8, name: 'Lateral Raise', muscle: 'Shoulders', difficulty: 'Beginner', ytId: '3VcKaXpzqRo' },
+  { id: 9, name: 'Bicep Curl', muscle: 'Arms', difficulty: 'Beginner', ytId: 'ykJmrZ5v0Oo' },
+  { id: 10, name: 'Tricep Dips', muscle: 'Arms', difficulty: 'Intermediate', ytId: '0326dy_-CzM' },
+  { id: 11, name: 'Plank', muscle: 'Core', difficulty: 'Beginner', ytId: 'ASdvN_XEl_c' },
+  { id: 12, name: 'Ab Workout', muscle: 'Core', difficulty: 'Intermediate', ytId: 'DHD1-2P4ngg' },
 ];
 
 export default function Workout() {
   const user = useAuthStore((state) => state.user);
-  const { heatmapByDay, fetchHeatmapDay, saveHeatmapDay } = useProfileStore();
+  const token = useAuthStore((state) => state.token);
   const [search, setSearch] = useState('');
-  const activeDateKey = toDayKey(Date.now());
+  const [minutesOfCardio, setMinutesOfCardio] = useState('');
+  const [calorieLog, setCalorieLog] = useState({ minutes: 0, calories: 0 });
+  const [workoutTracker, setWorkoutTracker] = useState([]);
+  const [customWorkout, setCustomWorkout] = useState('');
+  const [savedWorkoutSummary, setSavedWorkoutSummary] = useState([]);
+
+  const getActiveToken = async () => {
+    if (token) return token;
+    if (auth?.currentUser) return auth.currentUser.getIdToken();
+    return null;
+  };
 
   useEffect(() => {
-    if (!user?.uid) return;
-    fetchHeatmapDay(user.uid, activeDateKey);
-  }, [user, activeDateKey, fetchHeatmapDay]);
+    async function fetchMeasureData() {
+      if (!user?.uid) return;
+      const activeToken = await getActiveToken();
+      if (!activeToken) return;
+      const { day } = await authorizedRequest(`/api/workout/day?dateKey=${encodeURIComponent(toDayKey(Date.now()))}`, activeToken, {
+        method: 'GET',
+      });
+      const data = day || {};
+      setCalorieLog({
+        minutes: Number(data.cardioMinutes || 0),
+        calories: Number(data.caloriesBurned || 0),
+      });
+      setWorkoutTracker(Array.isArray(data.workoutTracker) ? data.workoutTracker : []);
+      setSavedWorkoutSummary(Array.isArray(data.selectedMuscleGroups) ? data.selectedMuscleGroups : []);
+    }
 
-  const selectedExercises = useMemo(() => {
-    const persisted = heatmapByDay[activeDateKey];
-    return Array.isArray(persisted) ? persisted : [];
-  }, [heatmapByDay, activeDateKey]);
+    fetchMeasureData();
+  }, [user?.uid]);
 
   const filtered = workouts.filter((workout) =>
     workout.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -48,15 +67,62 @@ export default function Workout() {
     return 'badge-danger';
   };
 
-  const toggleExercise = (exerciseId) => {
-    const updated = selectedExercises.includes(exerciseId)
-      ? selectedExercises.filter((item) => item !== exerciseId)
-      : [...selectedExercises, exerciseId];
-    saveHeatmapDay(user?.uid, activeDateKey, updated);
+  const workoutMuscleMap = {
+    Chest: ['chest', 'shoulders_left', 'shoulders_right', 'triceps_left', 'triceps_right'],
+    Back: ['back', 'biceps_left', 'biceps_right'],
+    Legs: ['quads_left', 'quads_right', 'hamstrings_left', 'hamstrings_right', 'glutes'],
+    Shoulders: ['shoulders_left', 'shoulders_right', 'triceps_left', 'triceps_right'],
+    Arms: ['biceps_left', 'biceps_right', 'triceps_left', 'triceps_right'],
+    Core: ['abs', 'obliques_left', 'obliques_right'],
   };
 
-  const resetExercises = () => {
-    saveHeatmapDay(user?.uid, activeDateKey, []);
+  const saveMeasureData = async (patch) => {
+    if (!user?.uid) return;
+    const activeToken = await getActiveToken();
+    if (!activeToken) return;
+    await authorizedRequest('/api/workout/day', activeToken, {
+      method: 'POST',
+      body: JSON.stringify({ dateKey: toDayKey(Date.now()), ...patch }),
+    });
+  };
+
+  const estimatedCalories = Math.max(0, Math.round(Number(minutesOfCardio || 0) * 8));
+
+  const logCardio = async () => {
+    const minutes = Number(minutesOfCardio);
+    if (!Number.isFinite(minutes) || minutes < 0) return;
+    setCalorieLog({ minutes, calories: Math.max(0, Math.round(minutes * 8)) });
+    await saveMeasureData({
+      cardioMinutes: minutes,
+      caloriesBurned: Math.max(0, Math.round(minutes * 8)),
+    });
+  };
+
+  const toggleWorkout = async (workout) => {
+    // Persist raw workout names (not guide ids)
+    const exists = workoutTracker.includes(workout.name);
+    const next = exists
+      ? workoutTracker.filter((item) => item !== workout.name)
+      : [...workoutTracker, workout.name];
+    setWorkoutTracker(next);
+    const selectedMuscleGroups = workouts
+      .filter((item) => next.includes(item.name))
+      .flatMap((item) => workoutMuscleMap[item.muscle] || []);
+    setSavedWorkoutSummary(selectedMuscleGroups);
+    await saveMeasureData({ workoutTracker: next, selectedMuscleGroups });
+  };
+
+  const addCustomWorkout = async () => {
+    const normalized = customWorkout.trim();
+    if (!normalized) return;
+    if (workouts.some((item) => item.name.toLowerCase() === normalized.toLowerCase()) || workoutTracker.includes(normalized)) {
+      setCustomWorkout('');
+      return;
+    }
+    const next = [...workoutTracker, normalized];
+    setWorkoutTracker(next);
+    setCustomWorkout('');
+    await saveMeasureData({ workoutTracker: next, selectedMuscleGroups: savedWorkoutSummary });
   };
 
   return (
@@ -68,16 +134,69 @@ export default function Workout() {
           <h1 className="page-title">Workouts</h1>
         </div>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '40px' }}>
-          <MuscleHeatmap
-            selectedExercises={selectedExercises}
-          />
-          <ExerciseSelector
-            selectedExercises={selectedExercises}
-            onToggle={toggleExercise}
-            onReset={resetExercises}
-          />
+        <section style={{ marginBottom: '36px' }}>
+          <p className="section-label">Measure</p>
+          <h2 className="section-title" style={{ marginBottom: '14px' }}>Calorie and workout tracking</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
+            <div className="card">
+              <p style={{ color: 'var(--text)', fontWeight: 600, marginBottom: '8px' }}>Calorie Tracker</p>
+              <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '12px' }}>
+                Enter cardio minutes and get a live calorie estimate.
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  className="input-field"
+                  type="number"
+                  min="1"
+                  value={minutesOfCardio}
+                  onChange={(event) => setMinutesOfCardio(event.target.value)}
+                  placeholder="Minutes of cardio"
+                />
+              </div>
+              <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
+                <p style={{ color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>
+                  Approx. calories: {estimatedCalories} kcal
+                </p>
+                <button type="button" className="btn-primary" onClick={logCardio}>Log cardio</button>
+              </div>
+              <p style={{ color: 'var(--muted)', fontSize: '0.82rem', marginTop: '10px' }}>
+                Saved today: {calorieLog.minutes || 0} min · {calorieLog.calories || 0} kcal
+              </p>
+            </div>
+
+            <div className="card">
+              <p style={{ color: 'var(--text)', fontWeight: 600, marginBottom: '8px' }}>Workout Tracker</p>
+              <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '12px' }}>
+                Check completed workouts or add your own.
+              </p>
+              <div style={{ maxHeight: '210px', overflow: 'auto', display: 'grid', gap: '8px', marginBottom: '10px' }}>
+                {workouts.map((workout) => (
+                  <label key={workout.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text)' }}>
+                    <input
+                      type="checkbox"
+                      checked={workoutTracker.includes(workout.name)}
+                      onChange={() => toggleWorkout(workout)}
+                    />
+                    <span>{workout.name}</span>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  className="input-field"
+                  value={customWorkout}
+                  onChange={(event) => setCustomWorkout(event.target.value)}
+                  placeholder="Add a custom workout"
+                />
+                <button type="button" className="btn-secondary" onClick={addCustomWorkout}>Add</button>
+              </div>
+            </div>
+          </div>
         </section>
+
+        <section>
+          <p className="section-label">Refer</p>
+          <h2 className="section-title" style={{ marginBottom: '14px' }}>Video references</h2>
 
         <div style={{ maxWidth: '520px', marginBottom: '32px' }}>
           <input
@@ -134,6 +253,7 @@ export default function Workout() {
             </div>
           ))}
         </div>
+        </section>
       </div>
     </div>
   );
