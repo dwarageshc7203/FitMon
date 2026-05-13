@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,6 +35,16 @@ public class UserController {
       return ResponseEntity.ok(Map.of("message", "role updated"));
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "failed to update role", "details", e.getMessage()));
+    }
+  }
+
+  @GetMapping("/coaches")
+  public ResponseEntity<?> listCoaches(Authentication authentication) {
+    try {
+      return ResponseEntity.ok(Map.of("coaches", userService.getCoaches()));
+    } catch (Exception e) {
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .body(Map.of("message", "failed to load coaches", "details", e.getMessage()));
     }
   }
 

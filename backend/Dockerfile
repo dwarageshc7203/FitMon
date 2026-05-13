@@ -9,4 +9,6 @@ WORKDIR /app
 COPY --from=build /app/target/fitmon-backend-1.0.0.jar app.jar
 EXPOSE 3001
 ENV SPRING_PROFILES_ACTIVE=prod
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENV PORT=3001
+ENV JAVA_OPTS=""
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]

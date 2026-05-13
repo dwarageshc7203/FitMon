@@ -1377,20 +1377,29 @@ select {
 
 .session-grid {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
   gap: 24px;
+  align-items: start;
 }
 
 .session-stack {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+}
+
+.session-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
 }
 
 .session-control-dock {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
@@ -1399,18 +1408,21 @@ select {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .session-control-note {
   color: var(--text-secondary);
   font-size: 0.92rem;
   max-width: 460px;
+  overflow-wrap: break-word;
 }
 
 .session-control-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .session-control-button {
@@ -1432,6 +1444,18 @@ select {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.camera-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  z-index: 1;
 }
 
 .camera-gradient {
@@ -1550,6 +1574,181 @@ select {
   font-size: 1.1rem;
   color: #fff;
   margin-top: 4px;
+}
+
+.session-coach-panel,
+.session-chat-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.session-coach-header,
+.session-chat-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.coach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.coach-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.coach-card:hover {
+  border-color: var(--accent-border);
+  background: var(--card-hover);
+}
+
+.coach-card--active {
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+  box-shadow: var(--shadow-glow);
+}
+
+.coach-card-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.coach-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+.coach-avatar--placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  background: var(--card);
+  color: var(--text);
+}
+
+.coach-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.coach-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.coach-email {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.coach-selected {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+
+.coach-code-status {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+}
+
+.coach-code-status--valid {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+}
+
+.coach-code-status--invalid {
+  color: var(--danger);
+  background: var(--danger-dim);
+  border-color: rgba(255, 77, 109, 0.3);
+}
+
+.session-chat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.session-chat-message {
+  align-self: flex-start;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 10px 12px;
+  color: var(--text);
+}
+
+.session-chat-message p {
+  margin: 0;
+  word-break: break-word;
+}
+
+.session-chat-message--me {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #0b0f17;
+  border-color: var(--accent-border);
+}
+
+.session-chat-time {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.session-chat-message--me .session-chat-time {
+  color: rgba(11, 15, 23, 0.7);
+}
+
+.session-chat-input {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.session-chat-input .input-field {
+  flex: 1;
+}
+
+@media (max-width: 1080px) {
+  .session-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .feedback-panel {

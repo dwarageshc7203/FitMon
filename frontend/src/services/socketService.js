@@ -84,15 +84,58 @@ class SocketService {
         case 'session_started':
           useSessionStore.getState().setSessionId(data?.sessionId || null);
           useSessionStore.getState().setSessionActive(true);
+          if (data?.coach) {
+            useSessionStore.getState().setSelectedCoach({
+              uid: data.coach.uid,
+              name: data.coach.name,
+              email: data.coach.email,
+              photoURL: data.coach.photoURL,
+              role: data.coach.role || 'coach',
+            });
+          }
           break;
         case 'coach_session_code':
           useSessionStore.getState().setCoachSessionCode(data?.code || '');
           break;
+        case 'coach_code_status':
+          useSessionStore.getState().setCoachCodeStatus(data || null);
+          if (data?.valid && data?.code) {
+            useSessionStore.getState().setCoachSessionCode(data.code);
+          }
+          if (data?.valid && data?.coachUid) {
+            useSessionStore.getState().setSelectedCoach({
+              uid: data.coachUid,
+              name: data.coachName || 'Coach',
+              email: data.coachEmail || '',
+              photoURL: data.coachPhotoURL || '',
+              role: 'coach',
+            });
+          }
+          break;
         case 'coached_session_report':
           useSessionStore.getState().pushCoachedReport(data || null);
           break;
+        case 'coach_session_joined':
+          useSessionStore.getState().setActiveAthlete({
+            uid: data?.athleteUid,
+            name: data?.athleteName || 'Athlete',
+            email: data?.athleteEmail || '',
+            photoURL: data?.athletePhotoURL || '',
+            sessionId: data?.sessionId || null,
+          });
+          break;
         case 'athlete_video_frame':
           useSessionStore.getState().setAthleteVideoFrame(data || null);
+          break;
+        case 'chat_message':
+          if (!data?.message) return;
+          useSessionStore.getState().addChatMessage({
+            id: `${data.timestamp || Date.now()}-${data.fromUid || 'unknown'}-${Math.random().toString(36).slice(2, 6)}`,
+            fromUid: data.fromUid || null,
+            toUid: data.toUid || null,
+            message: data.message,
+            timestamp: data.timestamp || Date.now(),
+          });
           break;
         case 'feedback':
           if (data?.type === 'warning') {
@@ -144,6 +187,14 @@ class SocketService {
     this.send('create_coach_session_code', {});
   }
 
+  validateCoachCode(code) {
+    this.send('validate_coach_code', { code });
+  }
+
+  requestCoachCode(coachUid) {
+    this.send('request_coach_code', { coachUid });
+  }
+
   sendCVResults(results) {
     this.send('cv_results', results);
   }
@@ -154,6 +205,10 @@ class SocketService {
 
   sendVideoFrame(imageData, timestamp = Date.now()) {
     this.send('video_frame', { imageData, timestamp });
+  }
+
+  sendChatMessage(toUid, message) {
+    this.send('chat_message', { toUid, message });
   }
 
   endSession() {

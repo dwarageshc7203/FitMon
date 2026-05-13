@@ -14,7 +14,7 @@ import { BicepCurlEngine } from '../utils/cvLogic';
 const FRAME_INTERVAL = 100;
 const curlEngine = new BicepCurlEngine();
 
-export default function WebcamFeed() {
+export default function WebcamFeed({ enableFrameStreaming = true }) {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
@@ -68,7 +68,7 @@ export default function WebcamFeed() {
 
   useEffect(() => {
     let frameTimer = null;
-    if (!sessionActive) {
+    if (!sessionActive || !enableFrameStreaming) {
       return () => {
         if (frameTimer) clearInterval(frameTimer);
       };
@@ -95,7 +95,7 @@ export default function WebcamFeed() {
     return () => {
       if (frameTimer) clearInterval(frameTimer);
     };
-  }, [sessionActive]);
+  }, [enableFrameStreaming, sessionActive]);
 
   const handleUserMediaError = useCallback((error) => {
     const message = error?.name === 'NotReadableError'

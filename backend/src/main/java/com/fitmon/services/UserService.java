@@ -321,4 +321,42 @@ public class UserService {
     String normalized = normalizeRole(snapshot.getString("role"));
     return normalized != null ? normalized : ROLE_FITNESS_ENTHUSIAST;
   }
+
+  public List<Map<String, Object>> getCoaches() throws Exception {
+    var snapshots = firestore.collection("users").whereEqualTo("role", ROLE_COACH).get().get();
+    List<Map<String, Object>> coaches = new ArrayList<>();
+
+    snapshots.forEach((doc) -> {
+      Map<String, Object> data = doc.getData() != null ? new HashMap<>(doc.getData()) : new HashMap<>();
+      coaches.add(buildUserSummary(doc.getId(), data, ROLE_COACH));
+    });
+
+    coaches.sort((a, b) -> Objects.toString(a.get("name"), "")
+      .compareToIgnoreCase(Objects.toString(b.get("name"), "")));
+    return coaches;
+  }
+
+  public Map<String, Object> getUserSummary(String uid) throws Exception {
+    if (uid == null || uid.isBlank()) {
+      return Map.of();
+    }
+
+    var snapshot = firestore.collection("users").document(uid).get().get();
+    Map<String, Object> data = snapshot.exists() && snapshot.getData() != null
+      ? new HashMap<>(snapshot.getData())
+      : new HashMap<>();
+    String normalizedRole = normalizeRole(Objects.toString(data.get("role"), ""));
+    return buildUserSummary(uid, data, normalizedRole);
+  }
+
+  private Map<String, Object> buildUserSummary(String uid, Map<String, Object> data, String roleOverride) {
+    Map<String, Object> summary = new HashMap<>();
+    summary.put("uid", uid);
+    summary.put("name", Objects.toString(data.get("name"), "FitMon User"));
+    summary.put("email", Objects.toString(data.get("email"), ""));
+    summary.put("photoURL", Objects.toString(data.get("photoURL"), ""));
+    String role = roleOverride != null ? roleOverride : normalizeRole(Objects.toString(data.get("role"), ""));
+    summary.put("role", role != null ? role : ROLE_FITNESS_ENTHUSIAST);
+    return summary;
+  }
 }

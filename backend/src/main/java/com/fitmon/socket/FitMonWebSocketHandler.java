@@ -71,10 +71,13 @@ public class FitMonWebSocketHandler extends TextWebSocketHandler {
     switch (envelope.getEvent()) {
       case "start_session" -> handleStartSession(session, envelope);
       case "create_coach_session_code" -> handleCreateCoachSessionCode(session);
+      case "validate_coach_code" -> handleValidateCoachCode(session, envelope);
+      case "request_coach_code" -> handleRequestCoachCode(session, envelope);
       case "frame" -> handleFrameWarning(session);
       case "cv_results" -> handleCvResults(session, envelope);
       case "video_frame" -> handleVideoFrame(session, envelope);
       case "iot_data" -> handleIotData(session, envelope);
+      case "chat_message" -> handleChatMessage(session, envelope);
       case "end_session" -> handleEndSession(session);
       default -> {
         // Ignore unknown event
@@ -155,8 +158,32 @@ public class FitMonWebSocketHandler extends TextWebSocketHandler {
     sessionStartedPayload.put("mode", created.getSessionMode());
     if (created.getCoachUid() != null && !created.getCoachUid().isBlank()) {
       sessionStartedPayload.put("coachUid", created.getCoachUid());
+      try {
+        Map<String, Object> coachSummary = userService.getUserSummary(created.getCoachUid());
+        sessionStartedPayload.put("coach", coachSummary);
+      } catch (Exception ignored) {
+        // coach summary is optional
+      }
     }
     sessionRegistry.send(session, "session_started", sessionStartedPayload);
+
+    if (created.getCoachUid() != null && !created.getCoachUid().isBlank()) {
+      String coachSocketId = userSocketRegistry.get(created.getCoachUid());
+      if (coachSocketId != null) {
+        try {
+          Map<String, Object> athleteSummary = userService.getUserSummary(token.getUid());
+          Map<String, Object> payload = new java.util.HashMap<>();
+          payload.put("sessionId", created.getId());
+          payload.put("athleteUid", token.getUid());
+          payload.put("athleteName", athleteSummary.getOrDefault("name", "Athlete"));
+          payload.put("athleteEmail", athleteSummary.getOrDefault("email", ""));
+          payload.put("athletePhotoURL", athleteSummary.getOrDefault("photoURL", ""));
+          sessionRegistry.sendToSessionId(coachSocketId, "coach_session_joined", payload);
+        } catch (Exception ignored) {
+          // ignore summary errors
+        }
+      }
+    }
   }
 
   private void handleCreateCoachSessionCode(WebSocketSession session) throws Exception {
@@ -180,6 +207,87 @@ public class FitMonWebSocketHandler extends TextWebSocketHandler {
     );
 
     sessionRegistry.send(session, "coach_session_code", Map.of("code", code));
+  }
+
+  private void handleValidateCoachCode(WebSocketSession session, SocketEnvelope envelope) throws IOException {
+    CoachLookupPayload payload = envelope.getData() == null
+      ? new CoachLookupPayload()
+      : objectMapper.treeToValue(envelope.getData(), CoachLookupPayload.class);
+    String code = payload != null && payload.code != null ? payload.code.trim().toUpperCase() : "";
+
+    if (code.isBlank()) {
+      sendCoachCodeStatus(session, code, false, "Enter a valid coach session code.", null);
+      return;
+    }
+
+    CoachCodeEntry entry = coachCodeRegistry.get(code);
+    if (entry == null) {
+      sendCoachCodeStatus(session, code, false, "Coach session code is invalid or expired.", null);
+      return;
+    }
+
+    sendCoachCodeStatus(session, code, true, null, entry);
+  }
+
+  private void handleRequestCoachCode(WebSocketSession session, SocketEnvelope envelope) throws IOException {
+    CoachLookupPayload payload = envelope.getData() == null
+      ? new CoachLookupPayload()
+      : objectMapper.treeToValue(envelope.getData(), CoachLookupPayload.class);
+    String coachUid = payload != null ? payload.coachUid : null;
+
+    if (coachUid == null || coachUid.isBlank()) {
+      sendCoachCodeStatus(session, "", false, "Missing coach selection.", null);
+      return;
+    }
+
+    CoachCodeEntry entry = findCoachCodeByCoachUid(coachUid);
+    if (entry == null) {
+      sendCoachCodeStatus(session, "", false, "Coach has not shared a session code yet.", null);
+      return;
+    }
+
+    sendCoachCodeStatus(session, entry.code(), true, null, entry);
+  }
+
+  private void handleChatMessage(WebSocketSession session, SocketEnvelope envelope) throws IOException {
+    FirebaseToken token = (FirebaseToken) session.getAttributes().get("firebaseUser");
+    if (token == null || token.getUid() == null) {
+      sendWarning(session, "Unauthorized: missing Firebase token.");
+      return;
+    }
+
+    ChatMessagePayload payload = envelope.getData() == null
+      ? new ChatMessagePayload()
+      : objectMapper.treeToValue(envelope.getData(), ChatMessagePayload.class);
+    String toUid = payload != null ? payload.toUid : null;
+    String message = payload != null ? payload.message : null;
+
+    if (toUid == null || toUid.isBlank() || message == null) {
+      sendWarning(session, "Missing chat recipient or message.");
+      return;
+    }
+
+    String trimmed = message.trim();
+    if (trimmed.isBlank()) {
+      return;
+    }
+
+    if (trimmed.length() > 500) {
+      trimmed = trimmed.substring(0, 500);
+    }
+
+    long timestamp = payload != null && payload.timestamp != null ? payload.timestamp : System.currentTimeMillis();
+    Map<String, Object> relay = new java.util.HashMap<>();
+    relay.put("fromUid", token.getUid());
+    relay.put("toUid", toUid);
+    relay.put("message", trimmed);
+    relay.put("timestamp", timestamp);
+
+    sessionRegistry.send(session, "chat_message", relay);
+    String targetSocketId = userSocketRegistry.get(toUid);
+    if (targetSocketId != null && !targetSocketId.equals(session.getId())) {
+      sessionRegistry.sendToSessionId(targetSocketId, "chat_message", relay);
+    }
   }
 
   private void handleFrameWarning(WebSocketSession session) throws IOException {
@@ -325,6 +433,50 @@ public class FitMonWebSocketHandler extends TextWebSocketHandler {
     }
   }
 
+  private void sendCoachCodeStatus(
+    WebSocketSession session,
+    String code,
+    boolean valid,
+    String message,
+    CoachCodeEntry entry
+  ) throws IOException {
+    Map<String, Object> payload = new java.util.HashMap<>();
+    payload.put("valid", valid);
+    payload.put("code", code);
+    if (message != null) {
+      payload.put("message", message);
+    }
+
+    if (entry != null) {
+      payload.put("coachUid", entry.coachUid());
+      payload.put("coachEmail", entry.coachEmail());
+      try {
+        Map<String, Object> coachSummary = userService.getUserSummary(entry.coachUid());
+        payload.put("coachName", coachSummary.getOrDefault("name", entry.coachEmail()));
+        payload.put("coachPhotoURL", coachSummary.getOrDefault("photoURL", ""));
+      } catch (Exception ignored) {
+        payload.put("coachName", entry.coachEmail());
+        payload.put("coachPhotoURL", "");
+      }
+    }
+
+    sessionRegistry.send(session, "coach_code_status", payload);
+  }
+
+  private CoachCodeEntry findCoachCodeByCoachUid(String coachUid) {
+    if (coachUid == null || coachUid.isBlank()) {
+      return null;
+    }
+
+    for (CoachCodeEntry entry : coachCodeRegistry.values()) {
+      if (coachUid.equals(entry.coachUid())) {
+        return entry;
+      }
+    }
+
+    return null;
+  }
+
   private String generateCoachCode() {
     String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     String candidate;
@@ -349,6 +501,17 @@ public class FitMonWebSocketHandler extends TextWebSocketHandler {
   private static class StartSessionRequest {
     public String mode;
     public String coachCode;
+  }
+
+  private static class CoachLookupPayload {
+    public String code;
+    public String coachUid;
+  }
+
+  private static class ChatMessagePayload {
+    public String toUid;
+    public String message;
+    public Long timestamp;
   }
 
   private static class VideoFramePayload {

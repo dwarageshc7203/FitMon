@@ -8,6 +8,11 @@ const useSessionStore = create((set, get) => ({
   sessionId: null,
   sessionActive: false,
   coachSessionCode: '',
+  availableCoaches: [],
+  selectedCoach: null,
+  coachCodeStatus: null,
+  activeAthlete: null,
+  chatMessages: [],
   coachedReports: [],
   athleteVideoFrame: null,
   repCount: 0,
@@ -37,6 +42,14 @@ const useSessionStore = create((set, get) => ({
   setSessionId: (sessionId) => set({ sessionId, socketError: '' }),
   setSessionActive: (sessionActive) => set({ sessionActive }),
   setCoachSessionCode: (coachSessionCode) => set({ coachSessionCode }),
+  setAvailableCoaches: (availableCoaches) => set({ availableCoaches }),
+  setSelectedCoach: (selectedCoach) => set({ selectedCoach }),
+  setCoachCodeStatus: (coachCodeStatus) => set({ coachCodeStatus }),
+  setActiveAthlete: (activeAthlete) => set({ activeAthlete }),
+  addChatMessage: (message) =>
+    set((state) => ({
+      chatMessages: [...state.chatMessages, message].slice(-200),
+    })),
   setAthleteVideoFrame: (athleteVideoFrame) => set({ athleteVideoFrame }),
   pushCoachedReport: (report) =>
     set((state) => ({
@@ -118,6 +131,11 @@ const useSessionStore = create((set, get) => ({
       sessionId: null,
       sessionActive: false,
       coachSessionCode: '',
+      availableCoaches: [],
+      selectedCoach: null,
+      coachCodeStatus: null,
+      activeAthlete: null,
+      chatMessages: [],
       athleteVideoFrame: null,
       repCount: 0,
       angle: 0,
