@@ -20,7 +20,7 @@ export default function Profile() {
     };
 
   const {
-    goal, streak, totalSessions, accuracyRate, recentSessions,
+    goal, streak, totalSessions, recentSessions,
     fetchProfileMetrics, updateGoal, isLoading,
     heatmapByDay, selectedHeatmapDate, weeklyHeatmap,
     setHeatmapDate, fetchHeatmapDay, fetchWeeklyHeatmap,
@@ -185,7 +185,6 @@ export default function Profile() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '32px' }}>
           <StatCard emoji="🔥" label="Streak" value={`${streak ?? 0}`} unit="days" />
           <StatCard emoji="📊" label="Sessions" value={`${totalSessions ?? 0}`} unit="total" />
-          <StatCard emoji="⚡" label="Accuracy Rate" value={`${accuracyRate ?? 0}%`} accent />
         </div>
 
         {/* ── RECENT ACTIVITY ── */}

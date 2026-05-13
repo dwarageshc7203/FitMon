@@ -5,6 +5,7 @@ import { firebaseApp } from '../firebase/config';
 import useAuthStore from '../store/useAuthStore';
 import useSessionStore from '../stores/useSessionStore';
 import socketService from '../services/socketService';
+import { authorizedRequest } from '../services/apiClient';
 
 const db = firebaseApp ? getFirestore(firebaseApp) : null;
 
@@ -46,6 +47,29 @@ export default function Mentor() {
     socketService.createCoachSessionCode();
   }, [isConnected]);
 
+  const handleGenerateCoachCode = () => {
+    if (token && !isConnected) {
+      socketService.connect(token);
+    }
+    socketService.createCoachSessionCode();
+  };
+
+  const handleRoleChange = async (event) => {
+    const newRole = event.target.value;
+    if (!token) return;
+
+    try {
+      await authorizedRequest('/api/users/role', token, {
+        method: 'PATCH',
+        body: JSON.stringify({ role: newRole }),
+      });
+      const nextUser = { ...(user || {}), role: newRole };
+      useAuthStore.getState().setAuthState({ user: nextUser, token });
+    } catch {
+      // ignore for now
+    }
+  };
+
   return (
     <div className="page mentor-page">
       <div className="container mentor-layout">
@@ -77,6 +101,24 @@ export default function Mentor() {
             <h1 className="page-title">Coach workspace for {user?.name || 'coach'}</h1>
           </header>
           <div className="card" style={{ marginBottom: '16px' }}>
+            <p className="section-label">Coach Profile</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div>
+                <p style={{ color: 'var(--text)', fontWeight: 700, fontSize: '1.05rem' }}>{coachProfile.name}</p>
+                <p className="text-secondary" style={{ fontSize: '0.86rem' }}>{coachProfile.email}</p>
+              </div>
+              <select
+                value={user?.role || 'coach'}
+                onChange={handleRoleChange}
+                className="input-field"
+                style={{ padding: '6px 10px', maxWidth: '220px' }}
+              >
+                <option value="coach">Coach</option>
+                <option value="fitness_enthusiast">Fitness Enthusiast</option>
+              </select>
+            </div>
+          </div>
+          <div className="card" style={{ marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
               <div>
                 <p className="section-label" style={{ marginBottom: '6px' }}>Coach Profile</p>
@@ -90,6 +132,9 @@ export default function Mentor() {
                 </p>
               </div>
             </div>
+            <button type="button" className="btn-primary" style={{ marginTop: '14px' }} onClick={handleGenerateCoachCode}>
+              Generate Coach Code
+            </button>
           </div>
           <div className="card" style={{ marginBottom: '16px' }}>
             <p className="section-label" style={{ marginBottom: '8px' }}>Client Video Stream</p>

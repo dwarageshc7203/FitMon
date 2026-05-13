@@ -21,6 +21,7 @@ class SocketService {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
     this.manualClose = false;
+    this.pendingCoachCode = false;
   }
 
   connect(token) {
@@ -46,6 +47,10 @@ class SocketService {
       this.reconnectAttempts = 0;
       useSessionStore.getState().setConnected(true);
       useSessionStore.getState().setSocketError('');
+      if (this.pendingCoachCode) {
+        this.pendingCoachCode = false;
+        this.send('create_coach_session_code', {});
+      }
     };
 
     this.socket.onclose = () => {
@@ -114,6 +119,7 @@ class SocketService {
 
   disconnect() {
     this.manualClose = true;
+    this.pendingCoachCode = false;
     if (this.socket) {
       this.socket.close();
       this.socket = null;
@@ -131,6 +137,10 @@ class SocketService {
   }
 
   createCoachSessionCode() {
+    if (this.socket?.readyState !== WebSocket.OPEN) {
+      this.pendingCoachCode = true;
+      return;
+    }
     this.send('create_coach_session_code', {});
   }
 

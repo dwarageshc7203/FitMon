@@ -7,6 +7,7 @@ import History from './pages/History';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Mentor from './pages/Mentor';
+import CoachProfile from './pages/CoachProfile';
 import Profile from './pages/Profile';
 import Report from './pages/Report';
 import Session from './pages/Session';
@@ -54,6 +55,7 @@ export default function App() {
 
             <Route element={<ProtectedRoute roles={['coach', 'mentor']} />}>
               <Route path="/coach" element={<Mentor />} />
+              <Route path="/coach/profile" element={<CoachProfile />} />
               <Route path="/mentor" element={<Navigate to="/coach" replace />} />
             </Route>
           </Routes>

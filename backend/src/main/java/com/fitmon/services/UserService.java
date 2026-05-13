@@ -194,6 +194,50 @@ public class UserService {
     refreshUserStreak(uid, epochMillis);
   }
 
+  private void refreshUserStreakForActivity(String uid, String dateKey) throws Exception {
+    if (uid == null || uid.isBlank() || dateKey == null || dateKey.isBlank()) {
+      return;
+    }
+
+    var userRef = firestore.collection("users").document(uid);
+    firestore.runTransaction((transaction) -> {
+      var snapshot = transaction.get(userRef).get();
+      long currentStreak = 0;
+      String lastDay = null;
+
+      if (snapshot.exists()) {
+        Long streakValue = snapshot.getLong("streak");
+        currentStreak = streakValue != null ? streakValue : 0;
+        lastDay = snapshot.getString("streakLastDay");
+      }
+
+      long nextStreak = 1;
+      if (lastDay != null && !lastDay.isBlank()) {
+        if (dateKey.equals(lastDay)) {
+          Map<String, Object> updates = new HashMap<>();
+          updates.put("lastSessionAt", FieldValue.serverTimestamp());
+          updates.put("updatedAt", FieldValue.serverTimestamp());
+          transaction.set(userRef, updates, SetOptions.merge());
+          return null;
+        }
+
+        LocalDate previousDay = LocalDate.parse(lastDay);
+        LocalDate currentDay = LocalDate.parse(dateKey);
+        if (currentDay.minusDays(1).isEqual(previousDay)) {
+          nextStreak = currentStreak + 1;
+        }
+      }
+
+      Map<String, Object> updates = new HashMap<>();
+      updates.put("streak", nextStreak);
+      updates.put("streakLastDay", dateKey);
+      updates.put("lastSessionAt", FieldValue.serverTimestamp());
+      updates.put("updatedAt", FieldValue.serverTimestamp());
+      transaction.set(userRef, updates, SetOptions.merge());
+      return null;
+    }).get();
+  }
+
   public Map<String, Object> getWorkoutDay(String uid, String dateKey) throws Exception {
     var userRef = firestore.collection("users").document(uid);
     var dayRef = userRef.collection("workoutDays").document(dateKey);
@@ -249,7 +293,18 @@ public class UserService {
     }
 
     dayRef.set(updates, SetOptions.merge()).get();
-    refreshUserStreakForDate(uid, dateKey);
+
+    boolean hasActivity = false;
+    if (updates.get("cardioMinutes") instanceof Number cardio && cardio.doubleValue() > 0) {
+      hasActivity = true;
+    }
+    if (updates.get("workoutTracker") instanceof List<?> tracker && !tracker.isEmpty()) {
+      hasActivity = true;
+    }
+
+    if (hasActivity) {
+      refreshUserStreakForActivity(uid, dateKey);
+    }
     return getWorkoutDay(uid, dateKey);
   }
 

@@ -112,6 +112,7 @@ export default function Navbar() {
     ? [
         { label: 'Home', to: '/coach' },
         { label: 'Session', to: '/session' },
+        { label: 'Profile', to: '/coach/profile' },
       ]
     : [
         { label: 'Home', to: '/dashboard' },
